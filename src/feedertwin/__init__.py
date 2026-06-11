@@ -7,6 +7,11 @@ from feedertwin.flowsim import (
     run_replications,
     run_simulation,
 )
+from feedertwin.strategies import (
+    AdaptiveVibration,
+    BaselineThreshold,
+    MeteringGate,
+)
 from feedertwin.transport import (
     ParticleTrace,
     TrayParams,
@@ -18,12 +23,15 @@ from feedertwin.transport import (
     sweep,
 )
 
-__version__ = "0.2.0"
+__version__ = "0.3.0"
 
 __all__ = [
+    "AdaptiveVibration",
+    "BaselineThreshold",
     "FlowMetrics",
     "FlowParams",
     "ParticleTrace",
+    "MeteringGate",
     "ReplicationStats",
     "TrayParams",
     "gamma",

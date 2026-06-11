@@ -121,6 +121,8 @@ class FlowMetrics:
     total_block_time_s: float = 0.0   #: суммарное время удержания заслонки, с
     detection_latencies_s: list[float] = field(default_factory=list)
     #: задержки «возникновение нарушения → ввод заслонки», с
+    control_trace: list[tuple[float, float]] = field(default_factory=list)
+    #: трасса управления: (момент, множитель интенсивности потока)
     sim_time_s: float = 0.0
 
     @property
@@ -171,13 +173,24 @@ class _ZoneState:
             self.violation_since = None
 
 
-def run_simulation(params: FlowParams) -> FlowMetrics:
+def run_simulation(params: FlowParams, strategy=None) -> FlowMetrics:
     """Один прогон имитационной модели с заданным зерном.
+
+    Args:
+        params: параметры потока, детектора и механизма.
+        strategy: стратегия управления (см. feedertwin.strategies).
+            По умолчанию — BaselineThreshold(params.n_confirm_frames),
+            в точности воспроизводящая поведение модели этапа 2.
 
     Returns:
         FlowMetrics с сырыми счётчиками и производными показателями.
     """
+    from feedertwin.strategies import BaselineThreshold
+
     params.validate()
+    if strategy is None:
+        strategy = BaselineThreshold(n_confirm_frames=params.n_confirm_frames)
+    strategy.reset()
     rng = np.random.default_rng(params.seed)
     env = simpy.Environment()
     zone = _ZoneState(env)
@@ -215,27 +228,39 @@ def run_simulation(params: FlowParams) -> FlowMetrics:
         Ждёт возврата заслонки и соблюдает минимальный физический зазор
         между последовательными входами (детали не проходят сквозь
         друг друга): после снятия блокировки скопившиеся детали входят
-        с интервалом entry_gap_s, а не одновременно.
+        с интервалом entry_gap_s, а не одновременно. Стратегия может
+        дополнительно дозировать вход через next_allowed.
         """
         while True:
             if zone.flap_engaged:
                 yield zone.flap_released
                 continue
-            wait = zone.next_admit_t - env.now
+            wait = max(zone.next_admit_t, strategy.next_allowed) - env.now
             if wait > 0:
                 yield env.timeout(wait)
                 continue  # после ожидания перепроверяем заслонку
             break
         zone.next_admit_t = env.now + params.entry_gap_s
+        strategy.on_admission(env.now, rng)
         pid = next(next_id)
         zone.parts[pid] = env.process(part_dwell(pid))
         zone.update_violation_clock()
 
     def source() -> simpy.events.Event:
-        """Источник деталей: Gamma-интервалы, часть приходов — сдвойки."""
+        """Источник деталей: Gamma-интервалы, часть приходов — сдвойки.
+
+        Интенсивность масштабируется множителем стратегии (имитация
+        регулирования интенсивности вибрации); изменения множителя
+        записываются в трассу управления.
+        """
         k = params.flow_shape_k
-        scale = 1.0 / (k * params.arrival_rate_hz)
+        last_factor = -1.0
         while True:
+            factor = strategy.rate_factor(env.now)
+            if factor != last_factor:
+                m.control_trace.append((env.now, factor))
+                last_factor = factor
+            scale = 1.0 / (k * params.arrival_rate_hz * factor)
             yield env.timeout(rng.gamma(k, scale))
             yield from admit_part()
             if rng.random() < params.p_double:
@@ -251,6 +276,7 @@ def run_simulation(params: FlowParams) -> FlowMetrics:
         if violation_started_at is not None:
             m.detection_latencies_s.append(engage_t - violation_started_at)
         m.flap_engagements += 1
+        strategy.on_engagement(engage_t)
         if zone.count <= 1:
             m.false_engagements += 1
         zone.flap_engaged = True
@@ -268,21 +294,16 @@ def run_simulation(params: FlowParams) -> FlowMetrics:
         ev.succeed()
 
     def camera() -> simpy.events.Event:
-        """Камера + детектор: кадры с периодом 1/fps, подтверждение N кадрами."""
+        """Камера + детектор: кадры с периодом 1/fps; решение — за стратегией."""
         a_t, b_t = params.conf_true_ab
         a_f, b_f = params.conf_false_ab
-        consecutive = 0
         frame_dt = 1.0 / params.fps
         while True:
             yield env.timeout(frame_dt)
             violation = zone.count > 1
             conf = rng.beta(a_t, b_t) if violation else rng.beta(a_f, b_f)
-            if conf > params.threshold:
-                consecutive += 1
-            else:
-                consecutive = 0
-            if consecutive >= params.n_confirm_frames and not zone.flap_busy:
-                consecutive = 0
+            positive = conf > params.threshold
+            if strategy.on_frame(env.now, positive) and not zone.flap_busy:
                 env.process(flap_cycle(zone.violation_since))
 
     env.process(source())
@@ -314,11 +335,17 @@ class ReplicationStats:
         return float(np.mean(x)), half
 
 
-def run_replications(params: FlowParams, n_reps: int = 20) -> ReplicationStats:
-    """Серия независимых прогонов с разными зёрнами и 95% ДИ по средним."""
+def run_replications(params: FlowParams, n_reps: int = 20, strategy=None) -> ReplicationStats:
+    """Серия независимых прогонов с разными зёрнами и 95% ДИ по средним.
+
+    Состояние стратегии сбрасывается моделью перед каждым прогоном.
+    """
     if n_reps < 1:
         raise ValueError("n_reps >= 1")
-    runs = [run_simulation(replace(params, seed=params.seed + i)) for i in range(n_reps)]
+    runs = [
+        run_simulation(replace(params, seed=params.seed + i), strategy=strategy)
+        for i in range(n_reps)
+    ]
     g = ReplicationStats._mean_ci
     return ReplicationStats(
         n=n_reps,
