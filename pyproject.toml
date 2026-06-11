@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "feedertwin"
-version = "0.1.0"
+version = "0.2.0"
 description = "Имитационная модель и исследование стратегий управления для автоматической системы поштучной подачи мелкоразмерных изделий"
 readme = "README.md"
 requires-python = ">=3.11"
@@ -13,6 +13,7 @@ authors = [{ name = "Maksim Lastovenko" }]
 dependencies = [
     "numpy>=1.26",
     "matplotlib>=3.8",
+    "simpy>=4.1",
 ]
 
 [project.optional-dependencies]
