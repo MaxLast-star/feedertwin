@@ -7,6 +7,13 @@ from feedertwin.flowsim import (
     run_replications,
     run_simulation,
 )
+from feedertwin.mcda import (
+    AhpResult,
+    TopsisResult,
+    ahp_weights,
+    topsis,
+    topsis_weight_sweep,
+)
 from feedertwin.strategies import (
     AdaptiveVibration,
     BaselineThreshold,
@@ -23,17 +30,20 @@ from feedertwin.transport import (
     sweep,
 )
 
-__version__ = "0.3.0"
+__version__ = "0.4.0"
 
 __all__ = [
     "AdaptiveVibration",
+    "AhpResult",
     "BaselineThreshold",
     "FlowMetrics",
     "FlowParams",
     "ParticleTrace",
     "MeteringGate",
     "ReplicationStats",
+    "TopsisResult",
     "TrayParams",
+    "ahp_weights",
     "gamma",
     "is_steady_regime",
     "mean_velocity",
@@ -42,5 +52,7 @@ __all__ = [
     "run_simulation",
     "simulate_particle",
     "sweep",
+    "topsis",
+    "topsis_weight_sweep",
     "__version__",
 ]
