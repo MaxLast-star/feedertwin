@@ -14,4 +14,4 @@ build/
 website/node_modules/
 website/build/
 website/.docusaurus/
-website/static/dashboard/
+website/static/dashboard-app/

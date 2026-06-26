@@ -2,6 +2,8 @@ name: Deploy site to GitHub Pages
 
 # Сборка Docusaurus-сайта и публикация на GitHub Pages.
 # Дашборд (dashboard/index.html) вкладывается в статику сайта перед сборкой.
+# Путь static/dashboard-app/ намеренно отличается от React-маршрута /dashboard,
+# чтобы избежать коллизии страницы Docusaurus и статического файла.
 
 on:
   push:
@@ -34,8 +36,8 @@ jobs:
 
       - name: Embed what-if dashboard
         run: |
-          mkdir -p website/static/dashboard
-          cp dashboard/index.html website/static/dashboard/index.html
+          mkdir -p website/static/dashboard-app
+          cp dashboard/index.html website/static/dashboard-app/index.html
 
       - name: Build site
         working-directory: website

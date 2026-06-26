@@ -1,4 +1,6 @@
 // @ts-check
+
+/** @type {import('@docusaurus/types').Config} */
 const config = {
   title: 'FeederTwin',
   tagline: 'Имитационная модель и исследование стратегий управления системой поштучной подачи',
@@ -8,7 +10,11 @@ const config = {
   organizationName: 'MaxLast-star',
   projectName: 'feedertwin',
   onBrokenLinks: 'warn',
-  markdown: { hooks: { onBrokenMarkdownLinks: 'warn' } },
+  markdown: {
+    mermaid: true,
+    hooks: { onBrokenMarkdownLinks: 'warn' },
+  },
+  themes: ['@docusaurus/theme-mermaid'],
   i18n: { defaultLocale: 'ru', locales: ['ru'] },
   presets: [
     ['classic', /** @type {import('@docusaurus/preset-classic').Options} */ ({
@@ -23,6 +29,19 @@ const config = {
     })],
   ],
   themeConfig: /** @type {import('@docusaurus/preset-classic').ThemeConfig} */ ({
+    // Палитра Mermaid согласована с дизайном «инженерный чертёж».
+    mermaid: {
+      theme: { light: 'neutral', dark: 'dark' },
+      options: {
+        themeVariables: {
+          primaryColor: '#eaf0f6',
+          primaryBorderColor: '#1d3a5f',
+          primaryTextColor: '#1d3a5f',
+          lineColor: '#41608a',
+          fontFamily: "'IBM Plex Mono', ui-monospace, monospace",
+        },
+      },
+    },
     navbar: {
       title: 'FeederTwin',
       items: [

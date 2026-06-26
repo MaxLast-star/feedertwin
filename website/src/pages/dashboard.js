@@ -3,7 +3,7 @@ import Layout from '@theme/Layout';
 import useBaseUrl from '@docusaurus/useBaseUrl';
 
 export default function Dashboard() {
-  const src = useBaseUrl('/dashboard/index.html');
+  const src = useBaseUrl('/dashboard-app/index.html');
   return (
     <Layout title="What-if дашборд" description="Интерактивное исследование параметров FeederTwin">
       <iframe
